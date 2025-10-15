@@ -51,6 +51,12 @@ struct Obj{
     Obj(Vector2 p, Vector2 s, Color c, float sp) : pos(p), size(s), color(c), speed(sp){}
 };
 
+void reverse_arr(Vector2 arr[], int size, Vector2 *recipient){
+    for (int i = size-1; i >= 0; i--){
+        recipient[size-i-1] = arr[i];
+    }
+}
+
 // struct Timer{
 //     int startTime;
 //     int duration;
@@ -128,17 +134,27 @@ int main(){
             float size {};
             float spd {};
             Vector2 posE;
+            cout << "Enemies size before: " << enemies.size() << endl;
             for(int i = 0; i < enemies.size(); i++){
                 auto enemy = enemies[i];
-                if (CheckCollisionPointPoly(enemy.pos, grouping_points, grouping_point_qty)){
+                Vector2 grouping_points_revrsed[110];
+                reverse_arr(grouping_points, grouping_point_qty, grouping_points_revrsed);
+                bool collision = CheckCollisionPointPoly(enemy.pos, grouping_points, grouping_point_qty) || CheckCollisionPointPoly(enemy.pos, grouping_points_revrsed, grouping_point_qty);
+                if (collision){
+                    cout << "Collided with enemy: " << i << endl;
+                    enemies[i].color = YELLOW;
+                    enemies[i].speed = 0;
                     size+=enemy.size.x;
                     spd+=enemy.speed/10;
                     posE=enemy.pos;
                     enemies.erase(enemies.begin()+i);
-                    i++;
+                    i--;
                 }
             }
+            size = 10 + 3 * sqrt(size);
             enemies.push_back(Obj(posE, {size, 0}, RED, spd));
+
+            cout << "Enemies size before: " << enemies.size() << endl;
         }
 
         if(grouping){
@@ -177,9 +193,9 @@ int main(){
         for (int i = 0; i < enemies.size(); i++){
             auto enemy = enemies[i];
             add_to_vector(&enemies[i].pos, normalize(subtract_vector(player.pos, enemy.pos)), enemy.speed);
-            if (kill_dash_active && get_distance(player.pos, enemy.pos) < min(player.size.x, player.size.y)){
+            if (kill_dash_active && get_distance(player.pos, enemy.pos) < min(player.size.x/2, player.size.y/2)+enemy.size.x){
+                points+=enemies[i].size.x/10;
                 enemies.erase(enemies.begin()+i);
-                points++;
             }
         }
 
@@ -208,11 +224,17 @@ int main(){
             DrawSplineLinear(grouping_points, grouping_point_qty, 5, {30,100,30,100});
             DrawTriangleFan(grouping_points, grouping_point_qty, {50,120,50,100});
             Vector2 grouping_points_revrsed[110];
-            for (int i = grouping_point_qty-1; i >= 0; i--){
-                grouping_points_revrsed[grouping_point_qty-i-1] = grouping_points[i];
-            }
+            reverse_arr(grouping_points, grouping_point_qty, grouping_points_revrsed);
+            // for (int i = grouping_point_qty-1; i >= 0; i--){
+            //     grouping_points_revrsed[grouping_point_qty-i-1] = grouping_points[i];
+            // }
             DrawTriangleFan(grouping_points_revrsed, grouping_point_qty, {50,120,50,100});
         }
+
+        Vector2 grouping_points_revrsed[110];
+        reverse_arr(grouping_points, grouping_point_qty, grouping_points_revrsed);
+
+
 
         //draw player
         Rectangle playerRectangle = {player.pos.x, player.pos.y, player.size.x,player.size.y};
@@ -224,11 +246,21 @@ int main(){
 
         //draw enemies
         for (auto &enemy : enemies)
-            DrawCircle(enemy.pos.x, enemy.pos.y, enemy.size.x, RED);
+            DrawCircle(enemy.pos.x, enemy.pos.y, enemy.size.x, enemy.color);
 
         //draw power bar
         for(float i = 0; i < Kpoints; i++)
             DrawRectangleV((Vector2){750-i*30, 750}, (Vector2){20,20} , GREEN);
+
+
+        //DEBUG GROUPING AREA
+        // for(int i = 1; i < grouping_point_qty-2; i+=4){
+        //     DrawTriangle(grouping_points[0], grouping_points[i], grouping_points[i+2], RED);
+        //     DrawTriangle(grouping_points_revrsed[0], grouping_points_revrsed[i], grouping_points_revrsed[i+2], BLUE);
+        // }
+        // for(int i = 0; i < grouping_point_qty; i++){
+        //     DrawCircleV(grouping_points[i], 2, GREEN);
+        // }
 
         DrawText(to_string(GetFPS()).c_str(), 30,30, 20, WHITE);
         DrawText(time_str, 700,30, 20, WHITE);
