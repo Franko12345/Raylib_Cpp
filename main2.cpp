@@ -45,10 +45,12 @@ struct Obj{
     Vector2 size;
     Color color;
     float speed;
+    float points;
 
-    Obj(Vector2 p, Vector2 s) : pos(p), size(s), color(WHITE), speed(0){}
-    Obj(Vector2 p, Vector2 s, Color c) : pos(p), size(s), color(c), speed(0){}
-    Obj(Vector2 p, Vector2 s, Color c, float sp) : pos(p), size(s), color(c), speed(sp){}
+    Obj(Vector2 p, Vector2 s) : pos(p), size(s), color(WHITE), speed(0), points(1){}
+    Obj(Vector2 p, Vector2 s, Color c) : pos(p), size(s), color(c), speed(0), points(1){}
+    Obj(Vector2 p, Vector2 s, Color c, float sp) : pos(p), size(s), color(c), speed(sp), points(1){}
+    Obj(Vector2 p, Vector2 s, Color c, float sp, float point) : pos(p), size(s), color(c), speed(sp), points(point){}
 };
 
 void reverse_arr(Vector2 arr[], int size, Vector2 *recipient){
@@ -69,7 +71,7 @@ void reverse_arr(Vector2 arr[], int size, Vector2 *recipient){
 int main(){
     srand(time(0));
 
-    InitWindow(800, 800, "asd");
+    InitWindow(800, 800, "Game");
     SetTargetFPS(60);
 
     Obj player = Obj({400,400}, {25,40}, WHITE, 4);
@@ -133,6 +135,7 @@ int main(){
             player.color = WHITE;
             float size {};
             float spd {};
+            float points {};
             Vector2 posE;
             cout << "Enemies size before: " << enemies.size() << endl;
             for(int i = 0; i < enemies.size(); i++){
@@ -194,7 +197,7 @@ int main(){
             auto enemy = enemies[i];
             add_to_vector(&enemies[i].pos, normalize(subtract_vector(player.pos, enemy.pos)), enemy.speed);
             if (kill_dash_active && get_distance(player.pos, enemy.pos) < min(player.size.x/2, player.size.y/2)+enemy.size.x){
-                points+=enemies[i].size.x/10;
+                points+=pow(enemies[i].size.x/10, 2);
                 enemies.erase(enemies.begin()+i);
             }
         }
