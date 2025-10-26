@@ -29,6 +29,14 @@ void add_to_vector(Vector2 *v1, Vector2 v2, float prop){
     v1->y += v2.y * prop;
 }
 
+Vector2 add_vector(Vector2 v1, Vector2 v2, float prop){
+    return {v1.x+v2.x*prop, v1.y+v2.y*prop};
+}
+
+Vector2 mult_vector(Vector2 v, float p){
+    return {v.x*p, v.y*p};
+}
+
 Vector2 normalize(Vector2 v){
     float magnitude = get_distance(v, {0,0});
     return {v.x/magnitude, v.y/magnitude};
@@ -38,19 +46,24 @@ float lerp(float a, float b, float t){
     return a + (b-a) * t;
 }
 
+Vector2 lerp2d(Vector2 a, Vector2 b, float t){
+    return {lerp(a.x, b.x, t), lerp(a.y, b.y, t)};
+}
+
 int global_cont {0};
 
 struct Obj{
     Vector2 pos;
     Vector2 size;
+    Vector2 inertia;
     Color color;
     float speed;
     float points;
 
-    Obj(Vector2 p, Vector2 s) : pos(p), size(s), color(WHITE), speed(0), points(1){}
-    Obj(Vector2 p, Vector2 s, Color c) : pos(p), size(s), color(c), speed(0), points(1){}
-    Obj(Vector2 p, Vector2 s, Color c, float sp) : pos(p), size(s), color(c), speed(sp), points(1){}
-    Obj(Vector2 p, Vector2 s, Color c, float sp, float point) : pos(p), size(s), color(c), speed(sp), points(point){}
+    Obj(Vector2 p, Vector2 s) : pos(p), size(s), color(WHITE), speed(0), points(1), inertia({0,0}){}
+    Obj(Vector2 p, Vector2 s, Color c) : pos(p), size(s), color(c), speed(0), points(1), inertia({0,0}){}
+    Obj(Vector2 p, Vector2 s, Color c, float sp) : pos(p), size(s), color(c), speed(sp), points(1), inertia({0,0}){}
+    Obj(Vector2 p, Vector2 s, Color c, float sp, float point) : pos(p), size(s), color(c), speed(sp), points(point), inertia({0,0}){}
 };
 
 void reverse_arr(Vector2 arr[], int size, Vector2 *recipient){
@@ -67,37 +80,63 @@ void reverse_arr(Vector2 arr[], int size, Vector2 *recipient){
 //     Timer() : startTime(-1), duration(-1), callback(){}
 //     Timer(int d, void(*c)) : startTime(global_cont), duration(d), callback(c){}
 // };
+Obj player = Obj({400,400}, {25,40}, WHITE, 4);
+float cont {};
+int points {};
+auto start = std::chrono::high_resolution_clock::now();
+
+vector<Obj> enemies = {};
+vector<Vector2> killPoint = {{(float)randint(200, 600), (float)randint(200, 600)}};
+
+int Kpoints {};
+
+float angle = 0;
+
+
+int dash_timer;
+int group_timer;
+
+bool kill_dash_active {false};
+bool grouping {false};
+const int DASH_TICKS {100};
+
+Vector2 grouping_points[110];
+int grouping_point_qty{0};
+
+void initial_game_state(){
+    player = Obj({400,400}, {25,40}, WHITE, 4);
+    cont = 0;
+    points = 0;
+    start = std::chrono::high_resolution_clock::now();
+
+    enemies = {};
+    killPoint = {{(float)randint(200, 600), (float)randint(200, 600)}};
+
+    Kpoints = 0;
+
+    angle = 0;
+
+    dash_timer = 0;
+    group_timer = 0;
+
+    kill_dash_active = false;
+    grouping = false;
+
+    memset(grouping_points, 0, sizeof(grouping_points));
+    grouping_point_qty = 0;
+
+}
+
 
 int main(){
     srand(time(0));
 
     InitWindow(800, 800, "Game");
     SetTargetFPS(60);
-
-    Obj player = Obj({400,400}, {25,40}, WHITE, 4);
-
     SetWindowState(FLAG_WINDOW_RESIZABLE);
-    float cont {};
-    int points {0};
-    auto start = std::chrono::high_resolution_clock::now();
 
-    vector<Obj> enemies = {};
-    vector<Vector2> killPoint = {{(float)randint(200, 600), (float)randint(200, 600)}};
+    initial_game_state();
 
-    int Kpoints {};
-
-    float angle = 0;
-
-
-    int dash_timer;
-    int group_timer;
-
-    bool kill_dash_active {false};
-    bool grouping {false};
-    const int DASH_TICKS {100};
-
-    Vector2 grouping_points[110];
-    int grouping_point_qty{0};
 
     while (!WindowShouldClose()){
         if(IsKeyDown(KEY_W))player.pos.y -= player.speed;
@@ -145,17 +184,18 @@ int main(){
                 bool collision = CheckCollisionPointPoly(enemy.pos, grouping_points, grouping_point_qty) || CheckCollisionPointPoly(enemy.pos, grouping_points_revrsed, grouping_point_qty);
                 if (collision){
                     cout << "Collided with enemy: " << i << endl;
-                    enemies[i].color = YELLOW;
-                    enemies[i].speed = 0;
+                    // enemies[i].color = YELLOW;
+                    // enemies[i].speed = 0;
                     size+=enemy.size.x;
                     spd+=enemy.speed/10;
                     posE=enemy.pos;
+                    points+=enemy.points*1.2;
                     enemies.erase(enemies.begin()+i);
                     i--;
                 }
             }
             size = 10 + 3 * sqrt(size);
-            enemies.push_back(Obj(posE, {size, 0}, RED, spd));
+            enemies.push_back(Obj(posE, {size, 0}, RED, spd, (float)(int)pow(points, 1.2)));
 
             cout << "Enemies size before: " << enemies.size() << endl;
         }
@@ -176,7 +216,10 @@ int main(){
 
         if (cont > 5){
             cont = 0;
-            Obj enemy = Obj({(float)randint(200, 600), (float)randint(200, 600)}, {10,0}, RED, 1);
+            Obj enemy = Obj({(float)randint(200, 600), (float)randint(200, 600)}, {10,0}, RED, 1, 1);
+            while (get_distance(enemy.pos, player.pos) < 150){
+                enemy = Obj({(float)randint(200, 600), (float)randint(200, 600)}, {10,0}, RED, 1, 1);
+            }
             enemies.push_back(enemy);
         }
 
@@ -195,12 +238,29 @@ int main(){
 
         for (int i = 0; i < enemies.size(); i++){
             auto enemy = enemies[i];
-            add_to_vector(&enemies[i].pos, normalize(subtract_vector(player.pos, enemy.pos)), enemy.speed);
-            if (kill_dash_active && get_distance(player.pos, enemy.pos) < min(player.size.x/2, player.size.y/2)+enemy.size.x){
-                points+=pow(enemies[i].size.x/10, 2);
-                enemies.erase(enemies.begin()+i);
+            enemies[i].speed += 0.003;
+            enemies[i].inertia = lerp2d(enemies[i].inertia, mult_vector(normalize(subtract_vector(player.pos, enemy.pos)), enemy.speed), 0.05);
+            add_to_vector(&enemies[i].pos, enemies[i].inertia, 1);
+
+            unsigned char r = 255 - (122*get_distance({0,0}, enemies[i].inertia)*0.1),
+            g = 255*get_distance({0,0}, enemies[i].inertia)*0.1,
+            b = 0,
+            a = 255;
+            enemies[i].color = {r, g, b, a};
+
+            if (get_distance(player.pos, enemy.pos) < min(player.size.x/2, player.size.y/2)+enemy.size.x){
+                if (kill_dash_active){
+                    points+=enemies[i].points;
+                    enemies.erase(enemies.begin()+i);
+                }else{
+                    initial_game_state();
+                }
+
             }
         }
+        if(enemies.size() > 0)
+            cout << "Color: (" << (float)enemies[0].color.r << ", " << (float)enemies[0].color.g << ", " << (float)enemies[0].color.b << ")" << endl;
+            // cout << "Pos: (" << enemies[0].pos.x << ", " << enemies[0].pos.y << ") speed: " << enemies[0].speed << endl;
 
         bool stable = false;
         while (!stable){
@@ -248,9 +308,11 @@ int main(){
             DrawCircleV(kp, 5, GREEN);
 
         //draw enemies
-        for (auto &enemy : enemies)
+        for (auto &enemy : enemies){
             DrawCircle(enemy.pos.x, enemy.pos.y, enemy.size.x, enemy.color);
-
+            DrawLineEx(enemy.pos, add_vector(enemy.pos, enemy.inertia, 5), 3, GRAY);
+            DrawCircleV(add_vector(enemy.pos, enemy.inertia, 5), 4, GRAY);
+        }
         //draw power bar
         for(float i = 0; i < Kpoints; i++)
             DrawRectangleV((Vector2){750-i*30, 750}, (Vector2){20,20} , GREEN);
