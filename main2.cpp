@@ -4,7 +4,7 @@
 #include <ctime>
 #include <cstdlib>
 #include <chrono>
-
+#include <fstream>
 
 using namespace std;
 
@@ -137,8 +137,22 @@ int main(){
 
     initial_game_state();
 
+    ifstream recordFile;
+
+    recordFile.open("Record");
+
+    int record;
+    recordFile >> record;
+    recordFile.close();
 
     while (!WindowShouldClose()){
+        if (points > record){
+            record = points;
+            ofstream recordWrite("Record");
+            recordWrite << record;
+            recordWrite.close();
+        }
+
         if(IsKeyDown(KEY_W))player.pos.y -= player.speed;
         if(IsKeyDown(KEY_S))player.pos.y += player.speed;
         if(IsKeyDown(KEY_A))player.pos.x -= player.speed;
@@ -283,7 +297,7 @@ int main(){
         BeginDrawing();
         ClearBackground(BLACK);
 
-        if (grouping_point_qty >= 4){
+        if (grouping_point_qty >= 4 && grouping){
             DrawSplineLinear(grouping_points, grouping_point_qty, 5, {30,100,30,100});
             DrawTriangleFan(grouping_points, grouping_point_qty, {50,120,50,100});
             Vector2 grouping_points_revrsed[110];
@@ -330,6 +344,7 @@ int main(){
         DrawText(to_string(GetFPS()).c_str(), 30,30, 20, WHITE);
         DrawText(time_str, 700,30, 20, WHITE);
         DrawText(to_string(points).c_str(), 400, 30, 50, WHITE);
+        DrawText(to_string(record).c_str(), 300, 40, 20, GREEN);
         EndDrawing();
         cont+=0.05;
         global_cont++;
